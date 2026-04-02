@@ -74,54 +74,10 @@ if postcodes:
                     color='green',
                     fill=True,
                     fill_opacity=0.6,
-                    popup=f"Postcode:            if 'post' in col.lower():
-                target_col = col
-                break
-        
-        if target_col:
-            raw_list = df[target_col].dropna().unique().tolist()
-            # Clean each postcode in the list
-            return [clean_postcode(p) for p in raw_list if p]
-        else:
-            return []
-    except Exception as e:
-        return []
-
-# Execute Data Fetching
-postcodes = get_data()
-
-# Sidebar UI
-with st.sidebar:
-    st.header("Campaign Progress")
-    st.success(f"✅ {len(postcodes)} Areas Completed")
-    
-    if st.button("🔄 Refresh Map Data"):
-        st.cache_data.clear()
-        st.rerun()
-    
-    st.write("---")
-    st.info("The system now automatically fixes spacing and typing errors from your sheet.")
-
-# Initialize the Map
-m = folium.Map(location=[53.7997, -1.5492], zoom_start=11)
-geolocator = Nominatim(user_agent="west_yorkshire_promo_final")
-
-if postcodes:
-    for pc in postcodes:
-        try:
-            # Geocoding: Force search within West Yorkshire for accuracy
-            location = geolocator.geocode(f"{pc}, West Yorkshire, UK", timeout=10)
-            if location:
-                folium.Circle(
-                    location=[location.latitude, location.longitude],
-                    radius=1200,
-                    color='green',
-                    fill=True,
-                    fill_opacity=0.6,
                     popup=f"Postcode: {pc}"
                 ).add_to(m)
         except:
             continue
 
-# Render the Map in the App
+# Render the Map
 st_folium(m, width="100%", height=600)
