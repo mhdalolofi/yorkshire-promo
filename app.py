@@ -11,27 +11,31 @@ SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=cs
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="WYCA HEWY Outreach", layout="wide")
 
-# --- HEADER ---
 st.title("📍 WYCA HEWY Outreach")
-st.markdown("Precision tracking with High-Speed Caching.")
+st.markdown("Precision tracking with Site Names and High-Speed Caching.")
 
 # --- FAST DATA LOADING ---
-@st.cache_data(ttl=10) # Refresh data from sheet every 10 seconds
+@st.cache_data(ttl=10)
 def load_sheet_data():
     try:
         df = pd.read_csv(SHEET_URL)
         if not df.empty:
-            # Get unique postcodes from column A, clean them and uppercase
-            raw_pcs = df.iloc[:, 0].dropna().unique().tolist()
-            return [str(x).strip().upper() for x in raw_pcs if len(str(x)) > 4]
+            # نأخذ العمود الأول (الرمز) والعمود الثاني (الاسم)
+            # نستخدم .iloc لضمان الترتيب بغض النظر عن أسماء الأعمدة
+            data = df.iloc[:, [0, 1]].dropna()
+            data.columns = ['pc', 'name']
+            
+            # تنظيف الرموز البريدية
+            data['pc'] = data['pc'].apply(lambda x: str(x).strip().upper())
+            return data.values.tolist()
         return []
     except:
         return []
 
-# --- SMART GEOCODING (The Speed Secret) ---
-@st.cache_data(ttl=3600) # Keep location coordinates in memory for 1 hour
+# --- SMART GEOCODING ---
+@st.cache_data(ttl=3600)
 def get_location_coordinates(pc):
-    geo = Nominatim(user_agent="wyca_fast_v7_final")
+    geo = Nominatim(user_agent="wyca_fast_v8_names")
     try:
         res = geo.geocode(f"{pc}, West Yorkshire, UK", timeout=5)
         if res:
@@ -41,27 +45,31 @@ def get_location_coordinates(pc):
     return None
 
 # --- MAIN APP LOGIC ---
-postcodes = load_sheet_data()
+locations_data = load_sheet_data()
 
 with st.sidebar:
     st.header("Campaign Progress")
-    st.success(f"✅ {len(postcodes)} Locations Processed")
+    st.success(f"✅ {len(locations_data)} Sites Processed")
     if st.button("🔄 Clear Cache & Sync"):
         st.cache_data.clear()
         st.rerun()
     st.write("---")
-    st.info("The map is now cached. Repeated visits will be instant.")
+    st.info("Now showing Site Names instead of just postcodes.")
 
 # Initialize Map
-m = folium.Map(location=[53.7997, -1.5492], zoom_start=11, tiles="OpenStreetMap")
+m = folium.Map(location=[53.7997, -1.5492], zoom_start=11)
 
-if postcodes:
-    for pc in postcodes:
+if locations_data:
+    for row in locations_data:
+        pc = row[0]   # الرمز البريدي
+        name = row[1] # اسم المكان
+        
         coords = get_location_coordinates(pc)
         if coords:
             folium.Marker(
                 location=coords,
-                popup=f"Site: {pc}",
+                popup=f"<b>{name}</b><br>Postcode: {pc}", # يظهر الاسم بخط عريض
+                tooltip=name, # يظهر الاسم بمجرد مرور الماوس فوق الدبوس
                 icon=folium.Icon(color='green', icon='map-pin', prefix='fa')
             ).add_to(m)
 
