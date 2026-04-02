@@ -1,7 +1,7 @@
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
-from geopy.geocoders import Nominatim
+from geopy.geocoders import ArcGIS  # تم تغيير المحرك هنا
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import re
@@ -15,7 +15,6 @@ st.title("📍 WYCA HEWY Outreach - Precision Dashboard")
 
 # --- 2. DATA CLEANING FUNCTIONS ---
 def clean_pc(pc):
-    """Formats UK postcodes and removes illegal characters."""
     if pd.isna(pc) or str(pc).strip() == "":
         return None
     val = re.sub(r'[^A-Z0-9]', '', str(pc).upper())
@@ -29,27 +28,27 @@ def load_and_clean_data():
         df = pd.read_csv(SHEET_URL)
         if df.empty:
             return []
-        # Take Column A (Postcode) and Column B (Site Name)
         raw_data = df.iloc[:, [0, 1]].copy()
         raw_data.columns = ['raw_pc', 'name']
-        # Cleaning process
+        
         raw_data['clean_pc'] = raw_data['raw_pc'].apply(clean_pc)
         raw_data['name'] = raw_data['name'].fillna("Unnamed Site").astype(str).str.strip()
-        # Filter out rows without valid postcodes
+        
         valid_data = raw_data.dropna(subset=['clean_pc']).to_dict('records')
         return valid_data
     except Exception as e:
         st.error(f"Connection Error: {e}")
         return []
 
-# --- 3. SMART GEOCODING ---
+# --- 3. SMART GEOCODING (ArcGIS Engine) ---
 @st.cache_data(ttl=86400)
 def get_coords_smart(pc):
-    geolocator = Nominatim(user_agent="wyca_precision_final_v15")
+    # استخدام محرك ArcGIS القوي بدلاً من Nominatim
+    geolocator = ArcGIS()
     queries = [f"{pc}, West Yorkshire, UK", f"{pc}, UK"]
     for q in queries:
         try:
-            loc = geolocator.geocode(q, timeout=5)
+            loc = geolocator.geocode(q, timeout=10)
             if loc:
                 return (loc.latitude, loc.longitude)
         except:
@@ -75,7 +74,7 @@ with st.sidebar:
 m = folium.Map(location=[53.8, -1.5], zoom_start=11)
 
 if locations:
-    with st.spinner('🚀 Optimizing 250+ locations...'):
+    with st.spinner('🚀 Processing 268+ locations via ArcGIS Engine...'):
         all_coords = process_parallel(locations)
     
     found_count = 0
