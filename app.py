@@ -4,12 +4,18 @@ from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
 import pandas as pd
 
+# --- Google Sheets Connection Settings ---
 SHEET_ID = "102kIAxa0-fZb4L6FCUBTj-ffg3Ob_3eIBYD1IZGJ2gA"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-st.set_page_config(page_title="West Yorkshire Promotion Tracker", layout="wide")
-st.title("📍 Precision Promotion Map")
+# Page Configuration
+st.set_page_config(page_title="WYCA HEWY Outreach", layout="wide")
 
+# The New Project Title
+st.title("📍 WYCA HEWY Outreach")
+st.markdown("Real-time tracking for outreach campaign across West Yorkshire.")
+
+# Function to clean and format UK postcodes automatically
 def clean_postcode(pc):
     if pd.isna(pc): return None
     clean_pc = "".join(filter(str.isalnum, str(pc))).upper()
@@ -17,6 +23,7 @@ def clean_postcode(pc):
         return clean_pc[:-3] + " " + clean_pc[-3:]
     return clean_pc
 
+# Function to fetch data from the FIRST column
 @st.cache_data(ttl=10)
 def get_data():
     try:
@@ -28,31 +35,38 @@ def get_data():
     except:
         return []
 
+# Execute Data Fetching
 postcodes = get_data()
 
+# Sidebar UI
 with st.sidebar:
     st.header("Campaign Progress")
-    st.success(f"✅ {len(postcodes)} Locations Tracked")
+    st.success(f"✅ {len(postcodes)} Locations Covered")
+    
     if st.button("🔄 Force Refresh Map"):
         st.cache_data.clear()
         st.rerun()
+    
+    st.write("---")
+    st.info("The map shows precise markers for every postcode added to Column A of your sheet.")
 
-# Map initialization
-m = folium.Map(location=[53.7997, -1.5492], zoom_start=12) # زوم أقرب قليلاً
-geolocator = Nominatim(user_agent="west_yorkshire_precision_v4")
+# Initialize the Map (Centered on West Yorkshire)
+m = folium.Map(location=[53.7997, -1.5492], zoom_start=11)
+geolocator = Nominatim(user_agent="wyca_hewy_outreach_tracker")
 
 if postcodes:
     for pc in postcodes:
         try:
+            # Geocoding for precise location
             location = geolocator.geocode(f"{pc}, West Yorkshire, UK", timeout=10)
             if location:
-                # استخدام Marker للدقة العالية
                 folium.Marker(
                     location=[location.latitude, location.longitude],
-                    popup=f"Target: {pc}",
-                    icon=folium.Icon(color='green', icon='cloud')
+                    popup=f"Outreach Site: {pc}",
+                    icon=folium.Icon(color='green', icon='map-marker')
                 ).add_to(m)
         except:
             continue
 
+# Render the Map
 st_folium(m, width="100%", height=600)
